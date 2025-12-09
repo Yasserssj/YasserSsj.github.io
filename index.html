@@ -166,9 +166,8 @@ window.addEventListener('pointermove', e=>{
 
   // Si el botón "Sí" está sobre el recuadro, simular un click
   if(active.id === 'yes' && isNearDrop(active)){
-    active.click(); // simula el click
-    active.releasePointerCapture(active._pid);
-    active = null;
+    openWhatsApp();
+    
   }
 });
 

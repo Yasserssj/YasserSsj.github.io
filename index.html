@@ -10,7 +10,6 @@
     --green:#2ecc71;
     --red:#ff5c5c;
     --btnW:clamp(90px,20vw,160px);
-    --gap:clamp(12px,4vw,28px);
   }
   html,body{
     height:100%;
@@ -18,16 +17,15 @@
     font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;
     background:#fff;
     color:#111;
+    overflow:hidden;
   }
   .wrap{
-    min-height:100%;
+    height:100%;
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
     position:relative;
-    overflow:hidden;
-    padding:24px;
   }
   h1{
     font-size:clamp(28px,7vw,56px);
@@ -41,35 +39,6 @@
     margin:0 0 22px;
     text-align:center;
   }
-  .drop{
-    width:320px;
-    max-width:86vw;
-    height:120px;
-    border-radius:14px;
-    border:3px dashed rgba(0,0,0,0.1);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    position:relative;
-    background:rgba(255,255,255,0.6);
-    box-shadow:0 8px 30px rgba(0,0,0,0.05);
-    z-index:2;
-  }
-  .drop .label{font-weight:600;color:#333;}
-  .stage{
-    position:relative;
-    margin-top:18px;
-    width:100%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  }
-  .drag-wrap{
-    position:relative;
-    width:360px;
-    max-width:90vw;
-    height:160px;
-  }
   .btn{
     width:var(--btnW);
     height:var(--btnW);
@@ -79,164 +48,99 @@
     justify-content:center;
     font-weight:700;
     color:#fff;
-    touch-action:none;
-    user-select:none;
     cursor:pointer;
     position:absolute;
-    top:24px;
-    z-index:3;
   }
-  .btn.green{
-    background:linear-gradient(180deg,var(--green),#1fa65a);
-    left:calc(50% - var(--gap)/2 - var(--btnW));
+  .btn.green{background:linear-gradient(180deg,var(--green),#1fa65a);}
+  .btn.red{background:linear-gradient(180deg,var(--red),#e03a48);}
+  .hearts{pointer-events:none;position:absolute;inset:0;overflow:hidden;z-index:0;}
+  .heart{
+    position:absolute;
+    width:18px;
+    height:18px;
+    transform:rotate(45deg);
+    opacity:0.5;
+    background:var(--pink);
   }
-  .btn.red{
-    background:linear-gradient(180deg,var(--red),#e03a48);
-    left:calc(50% + var(--gap)/2);
+  .heart::before,.heart::after{
+    content:"";
+    position:absolute;
+    width:18px;
+    height:18px;
+    border-radius:50%;
+    background:var(--pink);
   }
+  .heart::before{top:-50%;left:0;}
+  .heart::after{left:50%;top:0;}
+  @keyframes floaty{0%{transform:translateY(0) rotate(0) scale(0.9)}100%{transform:translateY(-100vh) rotate(360deg) scale(1.2)}}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="hearts"></div>
   <h1>¿Puedo seguir siendo tu novio?</h1>
-  <p class="instr">arrastra la respuesta hacia el recuadro</p>
-
-  <div class="drop" id="drop">
-    <div class="label">Respuesta aquí</div>
-  </div>
-
-  <div class="stage">
-    <div class="drag-wrap" id="stage">
-      <div class="btn green" id="yes">Sí</div>
-      <div class="btn red" id="no">No</div>
-    </div>
-  </div>
+  <p class="instr">¡Elige tu respuesta!</p>
+  <div class="btn green" id="yes">Sí</div>
+  <div class="btn red" id="no">No</div>
 </div>
 
 <script>
 const yes = document.getElementById('yes');
 const no = document.getElementById('no');
-const drop = document.getElementById('drop');
-const stage = document.getElementById('stage');
+const heartsContainer = document.querySelector('.hearts');
 
-let active = null;
-let start = {x:0,y:0};
-let origin = new Map();
+// Coloca los botones en posiciones iniciales
+function resetButtons(){
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  yes.style.left = (w/2 - yes.offsetWidth - 20) + 'px';
+  yes.style.top = (h/2 - yes.offsetHeight/2) + 'px';
+  no.style.left = (w/2 + 20) + 'px';
+  no.style.top = (h/2 - no.offsetHeight/2) + 'px';
+}
+window.addEventListener('resize', resetButtons);
+resetButtons();
 
 // Función para abrir WhatsApp
 function openWhatsApp(){
   const phone = '+50557740879';
-  const msg = `Si amor podemos seguir siendo novios.\n\nTe amo mucho.\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos`;
+  const msg = `Si amor podemos seguir siendo novios.\n\nTe amo mucho.`;
   const url = `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`;
-  window.open(url, '_blank');
+  window.open(url,'_blank');
+  createHearts(15); // efecto corazones
 }
 
-// Posición original
-function setOrigin(el,left,top){ origin.set(el,{x:left,y:top}); }
-function getOrigin(el){ return origin.get(el); }
-
-// Distancia al recuadro
-function distToDrop(el){
-  const er = el.getBoundingClientRect();
-  const dr = drop.getBoundingClientRect();
-  const ex = er.left + er.width/2;
-  const ey = er.top + er.height/2;
-  return Math.hypot(ex - (dr.left + dr.width/2), ey - (dr.top + dr.height/2));
-}
-function isNearDrop(el,threshold=120){ return distToDrop(el)<threshold; }
-
-// Drag
-function bindPointer(el){
-  el.addEventListener('pointerdown', e=>{
-    e.preventDefault();
-    el.setPointerCapture(e.pointerId);
-    active = el;
-    start.x = e.clientX;
-    start.y = e.clientY;
-    const o = getOrigin(el);
-    active._startLeft = o.x;
-    active._startTop = o.y;
-    active._pid = e.pointerId;
-    active.style.transition = 'none';
-  });
-}
-
-window.addEventListener('pointermove', e=>{
-  if(!active) return;
-  const dx = e.clientX - start.x;
-  const dy = e.clientY - start.y;
-  active.style.left = (active._startLeft + dx)+'px';
-  active.style.top = (active._startTop + dy)+'px';
-
-  // --- NUEVO: detectar que el botón Sí está sobre el recuadro mientras se mueve ---
-  if(active.id==='yes' && isNearDrop(active)){
-      active.click(); // simula un click real
+// Animación de corazones
+function createHearts(count){
+  for(let i=0;i<count;i++){
+    const h = document.createElement('div');
+    h.className='heart';
+    h.style.left = Math.random()*100+'vw';
+    h.style.bottom = '-30px';
+    h.style.width = h.style.height = (8+Math.random()*20)+'px';
+    h.style.setProperty('--pink', `hsl(${320+Math.random()*40},80%,65%)`);
+    h.style.animation = `floaty ${2+Math.random()*3}s linear`;
+    heartsContainer.appendChild(h);
+    setTimeout(()=> h.remove(), 4000);
   }
+}
+
+// Botón Sí
+yes.addEventListener('click', ()=> openWhatsApp());
+
+// Botón No divertido
+no.addEventListener('click', ()=>{
+  const w = window.innerWidth - no.offsetWidth;
+  const h = window.innerHeight - no.offsetHeight;
+  const newX = Math.random()*w;
+  const newY = Math.random()*h;
+  no.style.transition = 'all 0.3s';
+  no.style.left = newX + 'px';
+  no.style.top = newY + 'px';
+  no.style.background = `hsl(${Math.random()*360},80%,60%)`;
 });
-
-window.addEventListener('pointerup', e=>{
-  if(!active) return;
-  const el = active;
-  active = null;
-  if(el._pid) try{ el.releasePointerCapture(el._pid); } catch{}
-
-  // Si quedó sobre el recuadro
-  if(el.id==='yes' && isNearDrop(el)){
-    acceptYes(el);
-    return;
-  }
-  if(el.id==='no' && isNearDrop(el)){
-    rejectNo(el);
-    return;
-  }
-  revert(el);
-});
-
-// Volver a la posición original
-function revert(el){
-  const o = getOrigin(el);
-  el.style.transition = 'all .3s';
-  el.style.left = o.x+'px';
-  el.style.top = o.y+'px';
-}
-
-function rejectNo(el){
-  el.classList.add('pulse');
-  setTimeout(()=>el.classList.remove('pulse'),300);
-  revert(el);
-}
-
-function acceptYes(el){
-  const dr = drop.getBoundingClientRect();
-  const sr = stage.getBoundingClientRect();
-  const left = (dr.left + dr.width/2) - sr.left - el.offsetWidth/2;
-  const top = (dr.top + dr.height/2) - sr.top - el.offsetHeight/2;
-  el.style.transition = '.5s';
-  el.style.left = left+'px';
-  el.style.top = top+'px';
-}
-
-// Calcular posiciones
-function recalcOrigins(){
-  const s = stage.getBoundingClientRect();
-  [yes,no].forEach(el=>{
-    const r = el.getBoundingClientRect();
-    const left = r.left - s.left;
-    const top = r.top - s.top;
-    el.style.left = left+'px';
-    el.style.top = top+'px';
-    setOrigin(el,left,top);
-  });
-}
-
-window.addEventListener('resize', recalcOrigins);
-window.addEventListener('load', recalcOrigins);
-bindPointer(yes);
-bindPointer(no);
-
-// Click directo para el botón Sí
-yes.addEventListener('click', ()=>{ openWhatsApp(); acceptYes(yes); });
 </script>
 </body>
 </html>
+
 

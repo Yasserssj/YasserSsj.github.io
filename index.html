@@ -125,6 +125,15 @@
       });
     }
 
+    // open WhatsApp (synchronously) with the prepared message
+    function openWhatsApp(){
+      const phone = '+50557740879';
+      const raw = `Si amor podemos seguir siendo novios.\n\n\nTe amo mucho.\n\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos`;
+      const text = encodeURIComponent(raw);
+      const waUrl = `https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${text}`;
+      try{ window.open(waUrl, '_blank'); }catch(e){ window.location.href = waUrl; }
+    }
+
     window.addEventListener('pointermove', (e)=>{
       if(!active) return;
       const dx = e.clientX - start.x; const dy = e.clientY - start.y;
@@ -135,14 +144,14 @@
     window.addEventListener('pointerup', (e)=>{
       if(!active) return;
       active.style.transition = '';
-      const el = active; 
+      const el = active;
       // release pointer capture if possible
       try{ if(el._pointerId && el.releasePointerCapture) el.releasePointerCapture(el._pointerId); }catch(err){}
       delete el.dataset.dragging; active = null;
       const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
-      if(el.id === 'yes' && moved < 12){ acceptYes(el); return; }
+      if(el.id === 'yes' && moved < 12){ openWhatsApp(); acceptYes(el); return; }
       if(isNearDrop(el, 100)){
-        if(el.id === 'yes') return acceptYes(el);
+        if(el.id === 'yes'){ openWhatsApp(); acceptYes(el); return; }
         if(el.id === 'no') return rejectNo(el);
       }
       revert(el);
@@ -161,43 +170,16 @@
       if(attemptsNo>=3) doExplode(el);
     }
 
-    function doExplode(el){
-      const rect = el.getBoundingClientRect(); const parentRect = stage.getBoundingClientRect();
-      const cx = rect.left - parentRect.left + rect.width/2; const cy = rect.top - parentRect.top + rect.height/2;
-      explodeHolder.innerHTML = '';
-      const parts = 18;
-      for(let i=0;i<parts;i++){
-        const p = document.createElement('div'); p.className='particle';
-        const angle = Math.random()*Math.PI*2; const power = 80 + Math.random()*160;
-        const x = Math.cos(angle)*power; const y = Math.sin(angle)*power;
-        p.style.left = cx+'px'; p.style.top = cy+'px';
-        p.style.background = `hsl(${340+Math.random()*40},90%,60%)`;
-        p.style.setProperty('--x', x+'px'); p.style.setProperty('--y', y+'px');
-        p.style.animation = `burst 720ms cubic-bezier(.25,.9,.2,1) forwards`;
-        explodeHolder.appendChild(p);
-      }
-      stage.animate([{transform:'translateY(0)'},{transform:'translateY(-8px)'},{transform:'translateY(0)'}],{duration:420});
-      el.style.opacity='0'; el.style.pointerEvents='none';
-      setTimeout(()=>{ explodeHolder.innerHTML=''; attemptsNo=0; el.style.opacity='1'; el.style.pointerEvents='auto'; revert(el); },1200);
-    }
-
     function acceptYes(el){
       const dr = drop.getBoundingClientRect(), sr = stage.getBoundingClientRect();
       const targetLeft = (dr.left + dr.width/2) - sr.left - el.offsetWidth/2;
       const targetTop = (dr.top + dr.height/2) - sr.top - el.offsetHeight/2;
-      // open WhatsApp immediately (synchronous) so mobile browsers treat it as a user gesture
-      const phone = '+50557740879';
-      const raw = `Si amor podemos seguir siendo novios.\n\n\nTe amo mucho.\n\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos`;
-      const text = encodeURIComponent(raw);
-      const waUrl = `https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${text}`;
-      try{ window.open(waUrl, '_blank'); }catch(e){ window.location.href = waUrl; }
-      // animate movement to drop (visual) after opening
       el.style.transition='left 520ms cubic-bezier(.2,.9,.3,1), top 520ms cubic-bezier(.2,.9,.3,1)';
       el.style.left = targetLeft + 'px'; el.style.top = targetTop + 'px';
       el.classList.add('pulse'); setTimeout(()=>el.classList.remove('pulse'),600);
       burstHeartsAtDrop();
-      // try to close page (may be blocked); fallback to about:blank
-      setTimeout(()=>{ try{ window.close(); }catch(e){}; setTimeout(()=>{ window.location.href = 'about:blank'; },200); }, 400);
+      // try to close page after a short delay (WA already opened by caller)
+      setTimeout(()=>{ try{ window.close(); }catch(e){}; setTimeout(()=>{ window.location.href = 'about:blank'; },200); }, 520);
     }
 
     function burstHeartsAtDrop(){
@@ -231,7 +213,7 @@
     setTimeout(recalcOrigins,120);
 
     bindPointer(yes); bindPointer(no);
-    yes.addEventListener('click',(e)=>{ e.stopPropagation(); acceptYes(yes); });
+    yes.addEventListener('click',(e)=>{ e.stopPropagation(); openWhatsApp(); acceptYes(yes); });
     ['dragstart','touchstart'].forEach(ev=>{ yes.addEventListener(ev,(e)=>e.preventDefault()); no.addEventListener(ev,(e)=>e.preventDefault()); });
   </script>
 </body>

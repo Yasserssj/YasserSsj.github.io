@@ -120,6 +120,7 @@
         start.x = e.clientX; start.y = e.clientY;
         const o = getOrigin(el);
         active._startLeft = o.x; active._startTop = o.y;
+        active._pointerId = e.pointerId;
         active.style.transition = 'none';
       });
     }
@@ -134,7 +135,10 @@
     window.addEventListener('pointerup', (e)=>{
       if(!active) return;
       active.style.transition = '';
-      const el = active; delete el.dataset.dragging; active = null;
+      const el = active; 
+      // release pointer capture if possible
+      try{ if(el._pointerId && el.releasePointerCapture) el.releasePointerCapture(el._pointerId); }catch(err){}
+      delete el.dataset.dragging; active = null;
       const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
       if(el.id === 'yes' && moved < 12){ acceptYes(el); return; }
       if(isNearDrop(el, 100)){
@@ -181,25 +185,19 @@
       const dr = drop.getBoundingClientRect(), sr = stage.getBoundingClientRect();
       const targetLeft = (dr.left + dr.width/2) - sr.left - el.offsetWidth/2;
       const targetTop = (dr.top + dr.height/2) - sr.top - el.offsetHeight/2;
-      el.style.transition='left 520ms cubic-bezier(.2,.9,.3,1), top 520ms cubic-bezier(.2,.9,.3,1)';
-      el.style.left = targetLeft + 'px'; el.style.top = targetTop + 'px';
-      el.classList.add('pulse'); setTimeout(()=>el.classList.remove('pulse'),600);
-      burstHeartsAtDrop();
+      // open WhatsApp immediately (synchronous) so mobile browsers treat it as a user gesture
       const phone = '+50557740879';
       const raw = `Si amor podemos seguir siendo novios.\n\n\nTe amo mucho.\n\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos`;
       const text = encodeURIComponent(raw);
       const waUrl = `https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${text}`;
-      // abrir WhatsApp y luego intentar cerrar la página actual
-      setTimeout(()=>{
-        // abrir en nueva pestaña/ventana
-        try{ window.open(waUrl, '_blank'); }catch(e){}
-        // intentar cerrar la ventana actual — puede estar bloqueado por el navegador
-        setTimeout(()=>{
-          try{ window.close(); }catch(e){}
-          // fallback: navegar a about:blank para simular cierre si close() falla
-          setTimeout(()=>{ window.location.href = 'about:blank'; }, 120);
-        }, 300);
-      },520);
+      try{ window.open(waUrl, '_blank'); }catch(e){ window.location.href = waUrl; }
+      // animate movement to drop (visual) after opening
+      el.style.transition='left 520ms cubic-bezier(.2,.9,.3,1), top 520ms cubic-bezier(.2,.9,.3,1)';
+      el.style.left = targetLeft + 'px'; el.style.top = targetTop + 'px';
+      el.classList.add('pulse'); setTimeout(()=>el.classList.remove('pulse'),600);
+      burstHeartsAtDrop();
+      // try to close page (may be blocked); fallback to about:blank
+      setTimeout(()=>{ try{ window.close(); }catch(e){}; setTimeout(()=>{ window.location.href = 'about:blank'; },200); }, 400);
     }
 
     function burstHeartsAtDrop(){
@@ -238,3 +236,4 @@
   </script>
 </body>
 </html>
+

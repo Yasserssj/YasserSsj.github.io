@@ -11,44 +11,25 @@
     h1{font-size:clamp(28px,7vw,56px);margin:0 0 6px;text-align:center;font-weight:700}
     p.instr{font-size:clamp(12px,2.5vw,16px);color:#666;margin:0 0 22px;text-align:center}
 
-    /* drop area */
-    .drop{width:320px;max-width:86vw;height:120px;border-radius:14px;border:3px dashed rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;position:relative;background:linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,250,250,0.4));box-shadow:0 8px 30px rgba(0,0,0,0.05);z-index:2}
+    .drop{width:320px;max-width:86vw;height:120px;border-radius:14px;border:3px dashed rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;position:relative;background:rgba(255,255,255,0.6);box-shadow:0 8px 30px rgba(0,0,0,0.05);z-index:2}
     .drop .label{font-weight:600;color:#333}
 
-    /* choices container */
-    .choices{display:flex;gap:18px;margin-top:20px}
-    .btn{width:var(--btnW);height:var(--btnW);border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;touch-action:none;user-select:none;cursor:pointer;position:relative;z-index:3}
-    .btn.small{width:86px;height:86px}
-    .btn.green{background:linear-gradient(180deg,var(--green),#1fa65a)}
-    .btn.red{background:linear-gradient(180deg,var(--red),#e03a48)}
-
-    /* make them absolute within area for dragging */
     .stage{position:relative;margin-top:18px;width:100%;display:flex;align-items:center;justify-content:center}
     .drag-wrap{position:relative;width:360px;max-width:90vw;height:160px}
-    .btn{position:absolute;top:24px}
-    .btn.green{left:calc(50% - var(--gap)/2 - var(--btnW));}
-    .btn.red{left:calc(50% + var(--gap)/2);}
 
-    /* hearts background */
+    .btn{width:var(--btnW);height:var(--btnW);border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;touch-action:none;user-select:none;cursor:pointer;position:absolute;top:24px;z-index:3}
+    .btn.green{background:linear-gradient(180deg,var(--green),#1fa65a);left:calc(50% - var(--gap)/2 - var(--btnW));}
+    .btn.red{background:linear-gradient(180deg,var(--red),#e03a48);left:calc(50% + var(--gap)/2);}
+
     .hearts{pointer-events:none;position:absolute;inset:0;overflow:hidden;z-index:0}
     .heart{position:absolute;width:var(--size,18px);height:var(--size,18px);transform:rotate(45deg);opacity:0.12;background:var(--pink)}
     .heart::before,.heart::after{content:"";position:absolute;width:var(--size,18px);height:var(--size,18px);border-radius:50%;background:var(--pink)}
     .heart::before{top:-50%;left:0}
     .heart::after{left:50%;top:0}
-    @keyframes floaty{0%{transform:translateY(0) rotate(0) scale(0.9)}100%{transform:translateY(-140vh) rotate(360deg) scale(1.2)}}
 
-    /* animations */
-    .move-to-drop{transition:transform 520ms cubic-bezier(.2,.9,.3,1),opacity 220ms}
+    @keyframes floaty{0%{transform:translateY(0) rotate(0) scale(0.9)}100%{transform:translateY(-140vh) rotate(360deg) scale(1.2)}}
     .pulse{animation:pulse 600ms ease both}
     @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.12)}100%{transform:scale(1)}}
-
-    /* explosion for NO */
-    .explode-holder{position:absolute;inset:0;pointer-events:none;z-index:4}
-    .particle{position:absolute;width:12px;height:12px;background:var(--pink);transform-origin:center;border-radius:3px}
-    @keyframes burst{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(0.2)}}
-
-    /* small responsive tweaks */
-    @media(min-width:1000px){.drop{width:420px;height:130px}}
   </style>
 </head>
 <body>
@@ -65,157 +46,124 @@
       <div class="drag-wrap" id="stage">
         <div class="btn green" id="yes">Sí</div>
         <div class="btn red" id="no">No</div>
-        <div class="explode-holder" id="explode"></div>
       </div>
     </div>
   </div>
 
-  <script>
-    // --- Background hearts ---
-    (function(){
-      const heartsContainer = document.querySelector('.hearts');
-      const heartCount = 18;
-      for(let i=0;i<heartCount;i++){
-        const h = document.createElement('div');
-        h.className='heart';
-        const size = 8 + Math.random()*28;
-        h.style.setProperty('--size', size+'px');
-        h.style.left = Math.random()*100+'%';
-        h.style.bottom = -Math.random()*20+'vh';
-        h.style.opacity = 0.04 + Math.random()*0.18;
-        h.style.setProperty('--pink', `hsl(${320+Math.random()*40},80%,65%)`);
-        h.style.setProperty('--delay', Math.random()*-30+'s');
-        h.style.animation = `floaty ${14+Math.random()*14}s linear ${-Math.random()*8}s infinite`;
-        heartsContainer.appendChild(h);
-      }
-    })();
+<script>
+const yes = document.getElementById("yes");
+const no = document.getElementById("no");
+const drop = document.getElementById("drop");
+const stage = document.getElementById("stage");
 
-    // Drag & drop with pointer events
-    const yes = document.getElementById('yes');
-    const no = document.getElementById('no');
-    const drop = document.getElementById('drop');
-    const explodeHolder = document.getElementById('explode');
-    const stage = document.getElementById('stage');
+let active = null;
+let start = {x:0, y:0};
+let origin = new Map();
 
-    let active = null;
-    let start = {x:0,y:0};
-    let origin = new Map(); // left/top in px relative to stage
-    let attemptsNo = 0;
+function setOrigin(el){ 
+  const r = el.getBoundingClientRect();
+  const s = stage.getBoundingClientRect();
+  el.style.left = (r.left - s.left) + "px";
+  el.style.top = (r.top - s.top) + "px";
+  origin.set(el,{x:r.left-s.left, y:r.top-s.top});
+}
+function getOrigin(el){ return origin.get(el); }
 
-    function setOrigin(el, left, top){ origin.set(el, {x:left,y:top}); }
-    function getOrigin(el){ return origin.get(el) || {x: parseFloat(el.style.left)||0, y: parseFloat(el.style.top)||0}; }
+function isNearDrop(el){
+  const er = el.getBoundingClientRect();
+  const dr = drop.getBoundingClientRect();
+  const ex = er.left + er.width/2;
+  const ey = er.top + er.height/2;
+  const dx = ex - (dr.left + dr.width/2);
+  const dy = ey - (dr.top + dr.height/2);
+  return Math.hypot(dx,dy) < 120;
+}
 
-    function distToDrop(el){
-      const er = el.getBoundingClientRect(); const dr = drop.getBoundingClientRect();
-      const ex = er.left + er.width/2; const ey = er.top + er.height/2;
-      const dx = ex - (dr.left + dr.width/2); const dy = ey - (dr.top + dr.height/2);
-      return Math.hypot(dx,dy);
+function openWhatsAppDirect(){
+  const phone = "50557740879";
+  const msg = encodeURIComponent(
+    "Si amor podemos seguir siendo novios.\n\nTe amo mucho.\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos"
+  );
+  location.href = `https://wa.me/${phone}?text=${msg}`;
+}
+
+function bindDrag(el){
+  el.addEventListener("pointerdown", e=>{
+    active = el;
+    start.x = e.clientX;
+    start.y = e.clientY;
+    const o = getOrigin(el);
+    el._lx = o.x;
+    el._ly = o.y;
+    el.setPointerCapture(e.pointerId);
+    el.style.transition = "none";
+  });
+}
+
+window.addEventListener("pointermove", e=>{
+  if(!active) return;
+  const dx = e.clientX - start.x;
+  const dy = e.clientY - start.y;
+  active.style.left = (active._lx + dx) + "px";
+  active.style.top = (active._ly + dy) + "px";
+});
+
+window.addEventListener("pointerup", e=>{
+  if(!active) return;
+  const el = active;
+  active.releasePointerCapture(e.pointerId);
+  active = null;
+
+  const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+
+  // CLIC EN ESCRITORIO
+  if(el.id=="yes" && moved < 12){
+    openWhatsAppDirect();
+    return;
+  }
+
+  // SOLTADO EN EL RECUADRO
+  if(isNearDrop(el)){
+    if(el.id=="yes"){
+      openWhatsAppDirect();
+      return;
     }
-    function isNearDrop(el, threshold=120){ return distToDrop(el) < threshold }
+  }
 
-    function bindPointer(el){
-      el.addEventListener('pointerdown', function(e){
-        e.preventDefault(); el.setPointerCapture(e.pointerId);
-        active = el; active.dataset.dragging='1';
-        start.x = e.clientX; start.y = e.clientY;
-        const o = getOrigin(el);
-        active._startLeft = o.x; active._startTop = o.y;
-        active._pointerId = e.pointerId;
-        active.style.transition = 'none';
-      });
-    }
+  // Revertir
+  const o = getOrigin(el);
+  el.style.transition = "all .3s";
+  el.style.left = o.x+"px";
+  el.style.top = o.y+"px";
+});
 
-    // open WhatsApp (synchronously) with the prepared message
-    function openWhatsApp(){
-      const phone = '+50557740879';
-      const raw = `Si amor podemos seguir siendo novios.\n\n\nTe amo mucho.\n\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos`;
-      const text = encodeURIComponent(raw);
-      const waUrl = `https://wa.me/${phone.replace(/[^0-9]/g,'')}?text=${text}`;
-      try{ window.open(waUrl, '_blank'); }catch(e){ window.location.href = waUrl; }
-    }
+/* ——— SUPER FIX PARA MÓVILES ——— */
+yes.addEventListener("touchend", ()=>{
+  if(isNearDrop(yes)){
+    openWhatsAppDirect();
+  }
+});
 
-    window.addEventListener('pointermove', (e)=>{
-      if(!active) return;
-      const dx = e.clientX - start.x; const dy = e.clientY - start.y;
-      const nx = active._startLeft + dx; const ny = active._startTop + dy;
-      active.style.left = nx + 'px'; active.style.top = ny + 'px';
-    });
+/* bloquear arrastre fantasma */
+["dragstart","touchstart"].forEach(ev=>{
+  yes.addEventListener(ev, e=>e.preventDefault());
+  no.addEventListener(ev, e=>e.preventDefault());
+});
 
-    window.addEventListener('pointerup', (e)=>{
-      if(!active) return;
-      active.style.transition = '';
-      const el = active;
-      // release pointer capture if possible
-      try{ if(el._pointerId && el.releasePointerCapture) el.releasePointerCapture(el._pointerId); }catch(err){}
-      delete el.dataset.dragging; active = null;
-      const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
-      if(el.id === 'yes' && moved < 12){ openWhatsApp(); acceptYes(el); return; }
-      if(isNearDrop(el, 100)){
-        if(el.id === 'yes'){ openWhatsApp(); acceptYes(el); return; }
-        if(el.id === 'no') return rejectNo(el);
-      }
-      revert(el);
-    });
+/* posiciones iniciales */
+window.addEventListener("load", ()=>{
+  setOrigin(yes);
+  setOrigin(no);
+});
+window.addEventListener("resize", ()=>{
+  setOrigin(yes);
+  setOrigin(no);
+});
+bindDrag(yes);
+bindDrag(no);
+</script>
 
-    function revert(el){
-      const o = getOrigin(el);
-      el.style.transition = 'left 360ms ease, top 360ms ease';
-      el.style.left = o.x + 'px'; el.style.top = o.y + 'px';
-    }
-
-    function rejectNo(el){
-      attemptsNo++;
-      el.classList.add('pulse'); setTimeout(()=>el.classList.remove('pulse'),350);
-      revert(el);
-      if(attemptsNo>=3) doExplode(el);
-    }
-
-    function acceptYes(el){
-      const dr = drop.getBoundingClientRect(), sr = stage.getBoundingClientRect();
-      const targetLeft = (dr.left + dr.width/2) - sr.left - el.offsetWidth/2;
-      const targetTop = (dr.top + dr.height/2) - sr.top - el.offsetHeight/2;
-      el.style.transition='left 520ms cubic-bezier(.2,.9,.3,1), top 520ms cubic-bezier(.2,.9,.3,1)';
-      el.style.left = targetLeft + 'px'; el.style.top = targetTop + 'px';
-      el.classList.add('pulse'); setTimeout(()=>el.classList.remove('pulse'),600);
-      burstHeartsAtDrop();
-      // try to close page after a short delay (WA already opened by caller)
-      setTimeout(()=>{ try{ window.close(); }catch(e){}; setTimeout(()=>{ window.location.href = 'about:blank'; },200); }, 520);
-    }
-
-    function burstHeartsAtDrop(){
-      const dr = drop.getBoundingClientRect(), sr = stage.getBoundingClientRect();
-      const cx = dr.left - sr.left + dr.width/2; const cy = dr.top - sr.top + dr.height/2;
-      for(let i=0;i<10;i++){
-        const h = document.createElement('div'); h.className='particle';
-        h.style.left = cx+'px'; h.style.top = cy+'px'; h.style.width='10px'; h.style.height='10px'; h.style.borderRadius='50%';
-        h.style.background = `hsl(${320+Math.random()*40},80%,60%)`;
-        const angle = (Math.random()*Math.PI*2); const power = 30 + Math.random()*80;
-        const x = Math.cos(angle)*power; const y = Math.sin(angle)*power - 20;
-        h.style.setProperty('--x', x+'px'); h.style.setProperty('--y', y+'px');
-        h.style.animation = `burst 720ms ease-out forwards`;
-        explodeHolder.appendChild(h);
-        setTimeout(()=>h.remove(),900);
-      }
-    }
-
-    // compute and lock positions (px) on load/resize
-    function recalcOrigins(){
-      const s = stage.getBoundingClientRect();
-      [yes,no].forEach(el=>{
-        const r = el.getBoundingClientRect();
-        const left = Math.round(r.left - s.left); const top = Math.round(r.top - s.top);
-        el.style.left = left + 'px'; el.style.top = top + 'px';
-        setOrigin(el, left, top);
-      });
-    }
-    window.addEventListener('resize', recalcOrigins);
-    window.addEventListener('load', recalcOrigins);
-    setTimeout(recalcOrigins,120);
-
-    bindPointer(yes); bindPointer(no);
-    yes.addEventListener('click',(e)=>{ e.stopPropagation(); openWhatsApp(); acceptYes(yes); });
-    ['dragstart','touchstart'].forEach(ev=>{ yes.addEventListener(ev,(e)=>e.preventDefault()); no.addEventListener(ev,(e)=>e.preventDefault()); });
-  </script>
 </body>
 </html>
+
 

@@ -122,8 +122,11 @@ const stage = document.getElementById('stage');
 let active = null;
 let start = {x:0,y:0};
 let origin = new Map();
+let whatsappOpened = false; // evita abrir WhatsApp múltiples veces
 
 function openWhatsApp(){
+  if(whatsappOpened) return;
+  whatsappOpened = true;
   const phone = '+50557740879';
   const msg = `Si amor podemos seguir siendo novios.\n\nTe amo mucho.\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos`;
   const url = `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`;
@@ -154,10 +157,6 @@ function bindPointer(el){
     active._startTop = o.y;
     active._pid = e.pointerId;
     active.style.transition = 'none';
-
-    if(el.id==='yes'){
-      openWhatsApp(); // abre WhatsApp inmediatamente
-    }
   });
 }
 
@@ -177,6 +176,7 @@ window.addEventListener('pointerup', e=>{
 
   if(el.id==='yes' && isNearDrop(el)){
     acceptYes(el);
+    openWhatsApp(); // abrir WhatsApp cuando quede en el recuadro
     return;
   }
   if(el.id==='no' && isNearDrop(el)){
@@ -209,6 +209,7 @@ function acceptYes(el){
   el.style.top = top+'px';
 }
 
+// recalcular posiciones originales
 function recalcOrigins(){
   const s = stage.getBoundingClientRect();
   [yes,no].forEach(el=>{
@@ -225,6 +226,14 @@ window.addEventListener('resize', recalcOrigins);
 window.addEventListener('load', recalcOrigins);
 bindPointer(yes);
 bindPointer(no);
+
+// opcional: abrir WhatsApp automáticamente si el botón se queda quieto dentro del recuadro
+setInterval(()=>{
+  if(!active && isNearDrop(yes)){
+    openWhatsApp();
+  }
+}, 200);
 </script>
 </body>
 </html>
+

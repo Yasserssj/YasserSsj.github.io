@@ -51,119 +51,174 @@
   </div>
 
 <script>
-const yes = document.getElementById("yes");
-const no = document.getElementById("no");
-const drop = document.getElementById("drop");
-const stage = document.getElementById("stage");
+  // --- Background hearts ---
+  (function(){
+    const heartsContainer = document.querySelector('.hearts');
+    const heartCount = 18;
+    for(let i=0;i<heartCount;i++){
+      const h = document.createElement('div');
+      h.className='heart';
+      const size = 8 + Math.random()*28;
+      h.style.setProperty('--size', size+'px');
+      h.style.left = Math.random()*100+'%';
+      h.style.bottom = -Math.random()*20+'vh';
+      h.style.opacity = 0.04 + Math.random()*0.18;
+      h.style.setProperty('--pink', `hsl(${320+Math.random()*40},80%,65%)`);
+      h.style.animation = `floaty ${14+Math.random()*14}s linear ${-Math.random()*8}s infinite`;
+      heartsContainer.appendChild(h);
+    }
+  })();
 
-let active = null;
-let start = {x:0, y:0};
-let origin = new Map();
+  const yes = document.getElementById('yes');
+  const no = document.getElementById('no');
+  const drop = document.getElementById('drop');
+  const explodeHolder = document.getElementById('explode');
+  const stage = document.getElementById('stage');
 
-function setOrigin(el){ 
-  const r = el.getBoundingClientRect();
-  const s = stage.getBoundingClientRect();
-  el.style.left = (r.left - s.left) + "px";
-  el.style.top = (r.top - s.top) + "px";
-  origin.set(el,{x:r.left-s.left, y:r.top-s.top});
-}
-function getOrigin(el){ return origin.get(el); }
+  let active = null;
+  let start = {x:0,y:0};
+  let origin = new Map();
 
-function isNearDrop(el){
-  const er = el.getBoundingClientRect();
-  const dr = drop.getBoundingClientRect();
-  const ex = er.left + er.width/2;
-  const ey = er.top + er.height/2;
-  const dx = ex - (dr.left + dr.width/2);
-  const dy = ey - (dr.top + dr.height/2);
-  return Math.hypot(dx,dy) < 120;
-}
+  function setOrigin(el, left, top){ origin.set(el, {x:left,y:top}); }
+  function getOrigin(el){ return origin.get(el); }
 
-function openWhatsAppDirect(){
-  const phone = "50557740879";
-  const msg = encodeURIComponent(
-    "Si amor podemos seguir siendo novios.\n\nTe amo mucho.\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos"
-  );
-  location.href = `https://wa.me/${phone}?text=${msg}`;
-}
+  // --- NUEVO: BOTÓN INVISIBLE PARA FORZAR WHATSAPP EN MÓVIL ---
+  const ghostBtn = document.createElement("a");
+  ghostBtn.style.display = "none";
+  ghostBtn.setAttribute("target", "_blank");
+  document.body.appendChild(ghostBtn);
 
-function bindDrag(el){
-  el.addEventListener("pointerdown", e=>{
-    active = el;
-    start.x = e.clientX;
-    start.y = e.clientY;
-    const o = getOrigin(el);
-    el._lx = o.x;
-    el._ly = o.y;
-    el.setPointerCapture(e.pointerId);
-    el.style.transition = "none";
-  });
-}
+  function openWhatsApp(){
+    const phone = "+50557740879";
+    const msg = `Si amor podemos seguir siendo novios.\n\nTe amo mucho.\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos`;
+    const url = `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`;
 
-window.addEventListener("pointermove", e=>{
-  if(!active) return;
-  const dx = e.clientX - start.x;
-  const dy = e.clientY - start.y;
-  active.style.left = (active._lx + dx) + "px";
-  active.style.top = (active._ly + dy) + "px";
-});
-
-window.addEventListener("pointerup", e=>{
-  if(!active) return;
-  const el = active;
-  active.releasePointerCapture(e.pointerId);
-  active = null;
-
-  const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
-
-  // CLIC EN ESCRITORIO
-  if(el.id=="yes" && moved < 12){
-    openWhatsAppDirect();
-    return;
+    // MÓVIL BLOQUEA window.open → usamos botón fantasma (click real)
+    ghostBtn.href = url;
+    ghostBtn.click();
   }
 
-  // SOLTADO EN EL RECUADRO
-  if(isNearDrop(el)){
-    if(el.id=="yes"){
-      openWhatsAppDirect();
+  function distToDrop(el){
+    const er = el.getBoundingClientRect();
+    const dr = drop.getBoundingClientRect();
+    const ex = er.left + er.width/2;
+    const ey = er.top + er.height/2;
+    const dx = ex - (dr.left + dr.width/2);
+    const dy = ey - (dr.top + dr.height/2);
+    return Math.hypot(dx,dy);
+  }
+
+  function isNearDrop(el, threshold = 120){
+    return distToDrop(el) < threshold;
+  }
+
+  function bindPointer(el){
+    el.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      active = el;
+      start.x = e.clientX;
+      start.y = e.clientY;
+      const o = getOrigin(el);
+      active._startLeft = o.x;
+      active._startTop = o.y;
+      active._pid = e.pointerId;
+      active.style.transition = "none";
+    });
+  }
+
+  window.addEventListener("pointermove", (e)=>{
+    if(!active) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    active.style.left = (active._startLeft + dx) + "px";
+    active.style.top = (active._startTop + dy) + "px";
+  });
+
+  window.addEventListener("pointerup", (e)=>{
+    if(!active) return;
+    const el = active;
+    active = null;
+
+    if(el._pid) {
+      try { el.releasePointerCapture(el._pid); } catch {}
+    }
+
+    const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+
+    // CLICK → funciona normal
+    if(el.id === "yes" && moved < 12){
+      openWhatsApp();
+      acceptYes(el);
       return;
     }
+
+    // DRAG A LA ZONA → ENTRAMOS AQUÍ
+    if(el.id === "yes" && isNearDrop(el)){
+      openWhatsApp();   // ← ESTA VEZ SÍ ABRE WHATSAPP EN MÓVIL
+      acceptYes(el);
+      return;
+    }
+
+    // Si arrastra "No"…
+    if(el.id === "no" && isNearDrop(el)){
+      rejectNo(el);
+      return;
+    }
+
+    revert(el);
+  });
+
+  function revert(el){
+    const o = getOrigin(el);
+    el.style.transition = "all .3s";
+    el.style.left = o.x + "px";
+    el.style.top = o.y + "px";
   }
 
-  // Revertir
-  const o = getOrigin(el);
-  el.style.transition = "all .3s";
-  el.style.left = o.x+"px";
-  el.style.top = o.y+"px";
-});
-
-/* ——— SUPER FIX PARA MÓVILES ——— */
-yes.addEventListener("touchend", ()=>{
-  if(isNearDrop(yes)){
-    openWhatsAppDirect();
+  function rejectNo(el){
+    el.classList.add("pulse");
+    setTimeout(()=> el.classList.remove("pulse"), 300);
+    revert(el);
   }
-});
 
-/* bloquear arrastre fantasma */
-["dragstart","touchstart"].forEach(ev=>{
-  yes.addEventListener(ev, e=>e.preventDefault());
-  no.addEventListener(ev, e=>e.preventDefault());
-});
+  function acceptYes(el){
+    const dr = drop.getBoundingClientRect();
+    const sr = stage.getBoundingClientRect();
+    const left = (dr.left + dr.width/2) - sr.left - el.offsetWidth/2;
+    const top = (dr.top + dr.height/2) - sr.top - el.offsetHeight/2;
 
-/* posiciones iniciales */
-window.addEventListener("load", ()=>{
-  setOrigin(yes);
-  setOrigin(no);
-});
-window.addEventListener("resize", ()=>{
-  setOrigin(yes);
-  setOrigin(no);
-});
-bindDrag(yes);
-bindDrag(no);
+    el.style.transition = ".5s";
+    el.style.left = left + "px";
+    el.style.top = top + "px";
+
+    setTimeout(()=>{ window.location.href = "about:blank"; }, 800);
+  }
+
+  function recalcOrigins(){
+    const s = stage.getBoundingClientRect();
+    [yes, no].forEach(el=>{
+      const r = el.getBoundingClientRect();
+      const left = r.left - s.left;
+      const top = r.top - s.top;
+      el.style.left = left + "px";
+      el.style.top = top + "px";
+      setOrigin(el, left, top);
+    });
+  }
+
+  window.addEventListener("resize", recalcOrigins);
+  window.addEventListener("load", recalcOrigins);
+  bindPointer(yes);
+  bindPointer(no);
+
+  yes.addEventListener("click", ()=>{ openWhatsApp(); acceptYes(yes); });
+  ["dragstart","touchstart"].forEach(ev=>{
+    yes.addEventListener(ev, e=> e.preventDefault());
+    no.addEventListener(ev, e=> e.preventDefault());
+  });
 </script>
+
 
 </body>
 </html>
-
-

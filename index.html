@@ -136,12 +136,14 @@ function openWhatsApp(){
   const msg = `Si amor podemos seguir siendo novios.\n\nTe amo mucho.\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos`;
   const url = `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`;
   ghostLink.href = url;
-  ghostLink.click(); // esto abre WhatsApp en móvil y escritorio
+  ghostLink.click(); // abre WhatsApp en móvil y escritorio
 }
 
+// Posición original
 function setOrigin(el,left,top){ origin.set(el,{x:left,y:top}); }
 function getOrigin(el){ return origin.get(el); }
 
+// Distancia al recuadro
 function distToDrop(el){
   const er = el.getBoundingClientRect();
   const dr = drop.getBoundingClientRect();
@@ -151,9 +153,9 @@ function distToDrop(el){
   const dy = ey - (dr.top + dr.height/2);
   return Math.hypot(dx,dy);
 }
-
 function isNearDrop(el,threshold=120){ return distToDrop(el)<threshold; }
 
+// Drag
 function bindPointer(el){
   el.addEventListener('pointerdown', e=>{
     e.preventDefault();
@@ -166,6 +168,11 @@ function bindPointer(el){
     active._startTop = o.y;
     active._pid = e.pointerId;
     active.style.transition = 'none';
+
+    // --- NUEVO: abrir WhatsApp inmediatamente al presionar "Sí" ---
+    if(el.id==='yes'){
+      openWhatsApp();
+    }
   });
 }
 
@@ -185,16 +192,8 @@ window.addEventListener('pointerup', e=>{
 
   const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
 
-  // click directo
-  if(el.id==='yes' && moved<12){
-    openWhatsApp();
-    acceptYes(el);
-    return;
-  }
-
-  // drag al recuadro
+  // arrastrar al recuadro
   if(el.id==='yes' && isNearDrop(el)){
-    openWhatsApp(); // abre WhatsApp en móvil y escritorio
     acceptYes(el);
     return;
   }
@@ -207,6 +206,7 @@ window.addEventListener('pointerup', e=>{
   revert(el);
 });
 
+// Animaciones de volver a la posición original
 function revert(el){
   const o = getOrigin(el);
   el.style.transition = 'all .3s';
@@ -230,6 +230,7 @@ function acceptYes(el){
   el.style.top = top+'px';
 }
 
+// Calcular posiciones
 function recalcOrigins(){
   const s = stage.getBoundingClientRect();
   [yes,no].forEach(el=>{
@@ -247,8 +248,8 @@ window.addEventListener('load', recalcOrigins);
 bindPointer(yes);
 bindPointer(no);
 
-// click directo
-yes.addEventListener('click', ()=>{ openWhatsApp(); acceptYes(yes); });
+// click por si alguien hace click directo
+yes.addEventListener('click', ()=>{ acceptYes(yes); });
 ["dragstart","touchstart"].forEach(ev=>{
   yes.addEventListener(ev,e=>e.preventDefault());
   no.addEventListener(ev,e=>e.preventDefault());

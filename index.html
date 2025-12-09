@@ -21,25 +21,12 @@
   .btn.green{background:linear-gradient(180deg,var(--green),#1fa65a);left:calc(50% - var(--gap)/2 - var(--btnW));}
   .btn.red{background:linear-gradient(180deg,var(--red),#e03a48);left:calc(50% + var(--gap)/2);}
 
-  /* botón que aparece cuando arrastras correctamente */
-  #confirmWA{
-    display:none;
-    margin-top:20px;
-    background:#25d366;
-    color:white;
-    padding:14px 20px;
-    border-radius:14px;
-    font-size:18px;
-    font-weight:700;
-    cursor:pointer;
-    box-shadow:0 4px 12px rgba(0,0,0,0.2);
-    z-index:10;
-  }
+  .hearts{pointer-events:none;position:absolute;inset:0;overflow:hidden;z-index:0}
 </style>
 </head>
-
 <body>
 <div class="wrap">
+  <div class="hearts" aria-hidden="true"></div>
   <h1>¿Puedo seguir siendo tu novio?</h1>
   <p class="instr">arrastra la respuesta hacia el recuadro</p>
 
@@ -53,84 +40,95 @@
       <div class="btn red" id="no">No</div>
     </div>
   </div>
-
-  <button id="confirmWA">Enviar respuesta por WhatsApp</button>
 </div>
 
 <script>
-const yes = document.getElementById("yes");
-const no = document.getElementById("no");
-const drop = document.getElementById("drop");
-const stage = document.getElementById("stage");
-const confirmBtn = document.getElementById("confirmWA");
+const yes = document.getElementById('yes');
+const no = document.getElementById('no');
+const drop = document.getElementById('drop');
+const stage = document.getElementById('stage');
 
 let active = null;
 let start = {x:0,y:0};
 let origin = new Map();
 
-function setOrigin(el,l,t){ origin.set(el,{x:l,y:t}); }
+// enlace invisible para forzar WhatsApp en móvil
+const ghostLink = document.createElement('a');
+ghostLink.style.display = 'none';
+ghostLink.target = '_blank';
+document.body.appendChild(ghostLink);
+
+function openWhatsApp(){
+  const phone = '+50557740879';
+  const msg = `Si amor podemos seguir siendo novios.\n\nTe amo mucho.\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos`;
+  const url = `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`;
+  ghostLink.href = url;
+  ghostLink.click();
+}
+
+function setOrigin(el, left, top){ origin.set(el, {x:left,y:top}); }
 function getOrigin(el){ return origin.get(el); }
 
-function openWA(){
-  const msg =
-`Si amor podemos seguir siendo novios ❤️🥺
-Te amo muchísimo 💕
-Me comprometo a enviarte foto de mis pies en menos de 5 minutos 😳💖`;
-
-  const url = "https://wa.me/50557740879?text="+encodeURIComponent(msg);
-  window.location.href = url;
+function distToDrop(el){
+  const er = el.getBoundingClientRect();
+  const dr = drop.getBoundingClientRect();
+  const ex = er.left + er.width/2;
+  const ey = er.top + er.height/2;
+  const dx = ex - (dr.left + dr.width/2);
+  const dy = ey - (dr.top + dr.height/2);
+  return Math.hypot(dx,dy);
 }
 
-// distancia
-function isNear(el){
-  const er=el.getBoundingClientRect(), dr=drop.getBoundingClientRect();
-  const ex=er.left+er.width/2, ey=er.top+er.height/2;
-  const dx=ex-(dr.left+dr.width/2), dy=ey-(dr.top+dr.height/2);
-  return Math.hypot(dx,dy) < 120;
-}
+function isNearDrop(el, threshold=120){ return distToDrop(el)<threshold; }
 
-function bindDrag(el){
-  el.addEventListener("pointerdown", e=>{
+function bindPointer(el){
+  el.addEventListener('pointerdown', e=>{
     e.preventDefault();
     el.setPointerCapture(e.pointerId);
     active = el;
-    start.x=e.clientX; start.y=e.clientY;
+    start.x = e.clientX;
+    start.y = e.clientY;
     const o = getOrigin(el);
-    el._sx=o.x; el._sy=o.y;
-    el.style.transition="none";
+    active._startLeft = o.x;
+    active._startTop = o.y;
+    active._pid = e.pointerId;
+    active.style.transition = 'none';
   });
 }
 
-// mover
-window.addEventListener("pointermove", e=>{
+window.addEventListener('pointermove', e=>{
   if(!active) return;
-  let dx=e.clientX-start.x, dy=e.clientY-start.y;
-  active.style.left = (active._sx+dx)+"px";
-  active.style.top  = (active._sy+dy)+"px";
-
-  // cuando entra correctamente → mostramos botón real
-  if(active.id==="yes" && isNear(active)){
-    confirmBtn.style.display="block";
-    if(navigator.vibrate) navigator.vibrate(40);
-  }
+  const dx = e.clientX - start.x;
+  const dy = e.clientY - start.y;
+  active.style.left = (active._startLeft + dx)+'px';
+  active.style.top = (active._startTop + dy)+'px';
 });
 
-// soltar
-window.addEventListener("pointerup", e=>{
+window.addEventListener('pointerup', e=>{
   if(!active) return;
-  const el=active;
-  active=null;
+  const el = active;
+  active = null;
 
-  const moved=Math.hypot(e.clientX-start.x,e.clientY-start.y);
+  if(el._pid){ try{ el.releasePointerCapture(el._pid); } catch{} }
 
-  if(el.id==="yes" && moved<10){
-    openWA(); return;
+  const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+
+  // si es click
+  if(el.id==='yes' && moved<12){
+    openWhatsApp();
+    acceptYes(el);
+    return;
   }
 
-  if(el.id==="yes" && isNear(el)){
-    // NO ABRIMOS WA AQUÍ (móvil lo bloquea)
-    // solo animamos y mostramos el botón
-    confirmBtn.style.display="block";
+  // si se arrastra al recuadro
+  if(el.id==='yes' && isNearDrop(el)){
+    openWhatsApp();  // abre WhatsApp en móvil y escritorio
+    acceptYes(el);
+    return;
+  }
+
+  if(el.id==='no' && isNearDrop(el)){
+    rejectNo(el);
     return;
   }
 
@@ -138,31 +136,50 @@ window.addEventListener("pointerup", e=>{
 });
 
 function revert(el){
-  const o=getOrigin(el);
-  el.style.transition=".3s";
-  el.style.left=o.x+"px";
-  el.style.top=o.y+"px";
+  const o = getOrigin(el);
+  el.style.transition = 'all .3s';
+  el.style.left = o.x+'px';
+  el.style.top = o.y+'px';
 }
 
-// botón real → SIEMPRE funciona en móvil
-confirmBtn.onclick = openWA;
+function rejectNo(el){
+  el.classList.add('pulse');
+  setTimeout(()=>el.classList.remove('pulse'), 300);
+  revert(el);
+}
 
-// recalcular
-function recalc(){
-  const s=stage.getBoundingClientRect();
+function acceptYes(el){
+  const dr = drop.getBoundingClientRect();
+  const sr = stage.getBoundingClientRect();
+  const left = (dr.left+dr.width/2)-sr.left-el.offsetWidth/2;
+  const top = (dr.top+dr.height/2)-sr.top-el.offsetHeight/2;
+  el.style.transition = '.5s';
+  el.style.left = left+'px';
+  el.style.top = top+'px';
+}
+
+function recalcOrigins(){
+  const s = stage.getBoundingClientRect();
   [yes,no].forEach(el=>{
-    const r=el.getBoundingClientRect();
-    let x=r.left-s.left, y=r.top-s.top;
-    el.style.left=x+"px"; el.style.top=y+"px";
-    setOrigin(el,x,y);
+    const r = el.getBoundingClientRect();
+    const left = r.left - s.left;
+    const top = r.top - s.top;
+    el.style.left = left+'px';
+    el.style.top = top+'px';
+    setOrigin(el, left, top);
   });
 }
-window.addEventListener("load", recalc);
-window.addEventListener("resize", recalc);
 
-bindDrag(yes);
-bindDrag(no);
+window.addEventListener('resize', recalcOrigins);
+window.addEventListener('load', recalcOrigins);
+bindPointer(yes);
+bindPointer(no);
+
+yes.addEventListener('click', ()=>{ openWhatsApp(); acceptYes(yes); });
+["dragstart","touchstart"].forEach(ev=>{
+  yes.addEventListener(ev,e=>e.preventDefault());
+  no.addEventListener(ev,e=>e.preventDefault());
+});
 </script>
-
 </body>
 </html>

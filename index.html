@@ -8,7 +8,7 @@
   :root{
     --pink:#ff5d8f;
     --green:#2ecc71;
-    --red:#ff4b5c;
+    --red:#ff5c5c;
     --btnW:clamp(90px,20vw,160px);
     --gap:clamp(12px,4vw,28px);
   }
@@ -123,6 +123,7 @@ let active = null;
 let start = {x:0,y:0};
 let origin = new Map();
 
+// Función para abrir WhatsApp
 function openWhatsApp(){
   const phone = '+50557740879';
   const msg = `Si amor podemos seguir siendo novios.\n\nTe amo mucho.\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos`;
@@ -130,9 +131,11 @@ function openWhatsApp(){
   window.open(url, '_blank');
 }
 
+// Posición original
 function setOrigin(el,left,top){ origin.set(el,{x:left,y:top}); }
 function getOrigin(el){ return origin.get(el); }
 
+// Distancia al recuadro
 function distToDrop(el){
   const er = el.getBoundingClientRect();
   const dr = drop.getBoundingClientRect();
@@ -142,6 +145,7 @@ function distToDrop(el){
 }
 function isNearDrop(el,threshold=120){ return distToDrop(el)<threshold; }
 
+// Drag
 function bindPointer(el){
   el.addEventListener('pointerdown', e=>{
     e.preventDefault();
@@ -164,10 +168,9 @@ window.addEventListener('pointermove', e=>{
   active.style.left = (active._startLeft + dx)+'px';
   active.style.top = (active._startTop + dy)+'px';
 
-  // Si el botón "Sí" está sobre el recuadro, simular un click
-  if(active.id === 'yes' && isNearDrop(active)){
-    openWhatsApp();
-    
+  // --- NUEVO: detectar que el botón Sí está sobre el recuadro mientras se mueve ---
+  if(active.id==='yes' && isNearDrop(active)){
+      active.click(); // simula un click real
   }
 });
 
@@ -176,9 +179,20 @@ window.addEventListener('pointerup', e=>{
   const el = active;
   active = null;
   if(el._pid) try{ el.releasePointerCapture(el._pid); } catch{}
+
+  // Si quedó sobre el recuadro
+  if(el.id==='yes' && isNearDrop(el)){
+    acceptYes(el);
+    return;
+  }
+  if(el.id==='no' && isNearDrop(el)){
+    rejectNo(el);
+    return;
+  }
   revert(el);
 });
 
+// Volver a la posición original
 function revert(el){
   const o = getOrigin(el);
   el.style.transition = 'all .3s';
@@ -186,11 +200,11 @@ function revert(el){
   el.style.top = o.y+'px';
 }
 
-// Manejo de clicks reales
-yes.addEventListener('click', ()=>{
-  acceptYes(yes);
-  openWhatsApp();
-});
+function rejectNo(el){
+  el.classList.add('pulse');
+  setTimeout(()=>el.classList.remove('pulse'),300);
+  revert(el);
+}
 
 function acceptYes(el){
   const dr = drop.getBoundingClientRect();
@@ -202,6 +216,7 @@ function acceptYes(el){
   el.style.top = top+'px';
 }
 
+// Calcular posiciones
 function recalcOrigins(){
   const s = stage.getBoundingClientRect();
   [yes,no].forEach(el=>{
@@ -218,6 +233,9 @@ window.addEventListener('resize', recalcOrigins);
 window.addEventListener('load', recalcOrigins);
 bindPointer(yes);
 bindPointer(no);
+
+// Click directo para el botón Sí
+yes.addEventListener('click', ()=>{ openWhatsApp(); acceptYes(yes); });
 </script>
 </body>
 </html>

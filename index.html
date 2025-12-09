@@ -94,12 +94,10 @@
     background:linear-gradient(180deg,var(--red),#e03a48);
     left:calc(50% + var(--gap)/2);
   }
-  .hearts{pointer-events:none;position:absolute;inset:0;overflow:hidden;z-index:0;}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="hearts" aria-hidden="true"></div>
   <h1>¿Puedo seguir siendo tu novio?</h1>
   <p class="instr">arrastra la respuesta hacia el recuadro</p>
 
@@ -125,37 +123,25 @@ let active = null;
 let start = {x:0,y:0};
 let origin = new Map();
 
-// enlace invisible para abrir WhatsApp en móvil
-const ghostLink = document.createElement('a');
-ghostLink.style.display = 'none';
-ghostLink.target = '_blank';
-document.body.appendChild(ghostLink);
-
 function openWhatsApp(){
   const phone = '+50557740879';
   const msg = `Si amor podemos seguir siendo novios.\n\nTe amo mucho.\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos`;
   const url = `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`;
-  ghostLink.href = url;
-  ghostLink.click(); // abre WhatsApp en móvil y escritorio
+  window.open(url, '_blank');
 }
 
-// Posición original
 function setOrigin(el,left,top){ origin.set(el,{x:left,y:top}); }
 function getOrigin(el){ return origin.get(el); }
 
-// Distancia al recuadro
 function distToDrop(el){
   const er = el.getBoundingClientRect();
   const dr = drop.getBoundingClientRect();
   const ex = er.left + er.width/2;
   const ey = er.top + er.height/2;
-  const dx = ex - (dr.left + dr.width/2);
-  const dy = ey - (dr.top + dr.height/2);
-  return Math.hypot(dx,dy);
+  return Math.hypot(ex - (dr.left + dr.width/2), ey - (dr.top + dr.height/2));
 }
 function isNearDrop(el,threshold=120){ return distToDrop(el)<threshold; }
 
-// Drag
 function bindPointer(el){
   el.addEventListener('pointerdown', e=>{
     e.preventDefault();
@@ -169,9 +155,8 @@ function bindPointer(el){
     active._pid = e.pointerId;
     active.style.transition = 'none';
 
-    // --- NUEVO: abrir WhatsApp inmediatamente al presionar "Sí" ---
     if(el.id==='yes'){
-      openWhatsApp();
+      openWhatsApp(); // abre WhatsApp inmediatamente
     }
   });
 }
@@ -190,23 +175,17 @@ window.addEventListener('pointerup', e=>{
   active = null;
   if(el._pid) try{ el.releasePointerCapture(el._pid); } catch{}
 
-  const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
-
-  // arrastrar al recuadro
   if(el.id==='yes' && isNearDrop(el)){
     acceptYes(el);
     return;
   }
-
   if(el.id==='no' && isNearDrop(el)){
     rejectNo(el);
     return;
   }
-
   revert(el);
 });
 
-// Animaciones de volver a la posición original
 function revert(el){
   const o = getOrigin(el);
   el.style.transition = 'all .3s';
@@ -230,7 +209,6 @@ function acceptYes(el){
   el.style.top = top+'px';
 }
 
-// Calcular posiciones
 function recalcOrigins(){
   const s = stage.getBoundingClientRect();
   [yes,no].forEach(el=>{
@@ -247,14 +225,6 @@ window.addEventListener('resize', recalcOrigins);
 window.addEventListener('load', recalcOrigins);
 bindPointer(yes);
 bindPointer(no);
-
-// click por si alguien hace click directo
-yes.addEventListener('click', ()=>{ acceptYes(yes); });
-["dragstart","touchstart"].forEach(ev=>{
-  yes.addEventListener(ev,e=>e.preventDefault());
-  no.addEventListener(ev,e=>e.preventDefault());
-});
 </script>
 </body>
 </html>
-

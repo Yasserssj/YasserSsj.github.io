@@ -5,23 +5,96 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>¿Puedo seguir siendo tu novio?</title>
 <style>
-  :root{--pink:#ff5d8f;--green:#2ecc71;--red:#ff4b5c;--btnW:clamp(90px,20vw,160px);--gap:clamp(12px,4vw,28px)}
-  html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;background:#fff;color:#111}
-  .wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:24px}
-  h1{font-size:clamp(28px,7vw,56px);margin:0 0 6px;text-align:center;font-weight:700}
-  p.instr{font-size:clamp(12px,2.5vw,16px);color:#666;margin:0 0 22px;text-align:center}
-
-  .drop{width:320px;max-width:86vw;height:120px;border-radius:14px;border:3px dashed rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;position:relative;background:rgba(255,255,255,0.6);box-shadow:0 8px 30px rgba(0,0,0,0.05);z-index:2}
-  .drop .label{font-weight:600;color:#333}
-
-  .stage{position:relative;margin-top:18px;width:100%;display:flex;align-items:center;justify-content:center}
-  .drag-wrap{position:relative;width:360px;max-width:90vw;height:160px}
-
-  .btn{width:var(--btnW);height:var(--btnW);border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;touch-action:none;user-select:none;cursor:pointer;position:absolute;top:24px;z-index:3}
-  .btn.green{background:linear-gradient(180deg,var(--green),#1fa65a);left:calc(50% - var(--gap)/2 - var(--btnW));}
-  .btn.red{background:linear-gradient(180deg,var(--red),#e03a48);left:calc(50% + var(--gap)/2);}
-
-  .hearts{pointer-events:none;position:absolute;inset:0;overflow:hidden;z-index:0}
+  :root{
+    --pink:#ff5d8f;
+    --green:#2ecc71;
+    --red:#ff4b5c;
+    --btnW:clamp(90px,20vw,160px);
+    --gap:clamp(12px,4vw,28px);
+  }
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;
+    background:#fff;
+    color:#111;
+  }
+  .wrap{
+    min-height:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    overflow:hidden;
+    padding:24px;
+  }
+  h1{
+    font-size:clamp(28px,7vw,56px);
+    margin:0 0 6px;
+    text-align:center;
+    font-weight:700;
+  }
+  p.instr{
+    font-size:clamp(12px,2.5vw,16px);
+    color:#666;
+    margin:0 0 22px;
+    text-align:center;
+  }
+  .drop{
+    width:320px;
+    max-width:86vw;
+    height:120px;
+    border-radius:14px;
+    border:3px dashed rgba(0,0,0,0.1);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    background:rgba(255,255,255,0.6);
+    box-shadow:0 8px 30px rgba(0,0,0,0.05);
+    z-index:2;
+  }
+  .drop .label{font-weight:600;color:#333;}
+  .stage{
+    position:relative;
+    margin-top:18px;
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .drag-wrap{
+    position:relative;
+    width:360px;
+    max-width:90vw;
+    height:160px;
+  }
+  .btn{
+    width:var(--btnW);
+    height:var(--btnW);
+    border-radius:14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:700;
+    color:#fff;
+    touch-action:none;
+    user-select:none;
+    cursor:pointer;
+    position:absolute;
+    top:24px;
+    z-index:3;
+  }
+  .btn.green{
+    background:linear-gradient(180deg,var(--green),#1fa65a);
+    left:calc(50% - var(--gap)/2 - var(--btnW));
+  }
+  .btn.red{
+    background:linear-gradient(180deg,var(--red),#e03a48);
+    left:calc(50% + var(--gap)/2);
+  }
+  .hearts{pointer-events:none;position:absolute;inset:0;overflow:hidden;z-index:0;}
 </style>
 </head>
 <body>
@@ -52,7 +125,7 @@ let active = null;
 let start = {x:0,y:0};
 let origin = new Map();
 
-// enlace invisible para forzar WhatsApp en móvil
+// enlace invisible para abrir WhatsApp en móvil
 const ghostLink = document.createElement('a');
 ghostLink.style.display = 'none';
 ghostLink.target = '_blank';
@@ -63,10 +136,10 @@ function openWhatsApp(){
   const msg = `Si amor podemos seguir siendo novios.\n\nTe amo mucho.\n\nMe comprometo a enviarte foto de mis pies en menos de 5 minutos`;
   const url = `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`;
   ghostLink.href = url;
-  ghostLink.click();
+  ghostLink.click(); // esto abre WhatsApp en móvil y escritorio
 }
 
-function setOrigin(el, left, top){ origin.set(el, {x:left,y:top}); }
+function setOrigin(el,left,top){ origin.set(el,{x:left,y:top}); }
 function getOrigin(el){ return origin.get(el); }
 
 function distToDrop(el){
@@ -79,7 +152,7 @@ function distToDrop(el){
   return Math.hypot(dx,dy);
 }
 
-function isNearDrop(el, threshold=120){ return distToDrop(el)<threshold; }
+function isNearDrop(el,threshold=120){ return distToDrop(el)<threshold; }
 
 function bindPointer(el){
   el.addEventListener('pointerdown', e=>{
@@ -108,21 +181,20 @@ window.addEventListener('pointerup', e=>{
   if(!active) return;
   const el = active;
   active = null;
-
-  if(el._pid){ try{ el.releasePointerCapture(el._pid); } catch{} }
+  if(el._pid) try{ el.releasePointerCapture(el._pid); } catch{}
 
   const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
 
-  // si es click
+  // click directo
   if(el.id==='yes' && moved<12){
     openWhatsApp();
     acceptYes(el);
     return;
   }
 
-  // si se arrastra al recuadro
+  // drag al recuadro
   if(el.id==='yes' && isNearDrop(el)){
-    openWhatsApp();  // abre WhatsApp en móvil y escritorio
+    openWhatsApp(); // abre WhatsApp en móvil y escritorio
     acceptYes(el);
     return;
   }
@@ -144,15 +216,15 @@ function revert(el){
 
 function rejectNo(el){
   el.classList.add('pulse');
-  setTimeout(()=>el.classList.remove('pulse'), 300);
+  setTimeout(()=>el.classList.remove('pulse'),300);
   revert(el);
 }
 
 function acceptYes(el){
   const dr = drop.getBoundingClientRect();
   const sr = stage.getBoundingClientRect();
-  const left = (dr.left+dr.width/2)-sr.left-el.offsetWidth/2;
-  const top = (dr.top+dr.height/2)-sr.top-el.offsetHeight/2;
+  const left = (dr.left + dr.width/2) - sr.left - el.offsetWidth/2;
+  const top = (dr.top + dr.height/2) - sr.top - el.offsetHeight/2;
   el.style.transition = '.5s';
   el.style.left = left+'px';
   el.style.top = top+'px';
@@ -166,7 +238,7 @@ function recalcOrigins(){
     const top = r.top - s.top;
     el.style.left = left+'px';
     el.style.top = top+'px';
-    setOrigin(el, left, top);
+    setOrigin(el,left,top);
   });
 }
 
@@ -175,6 +247,7 @@ window.addEventListener('load', recalcOrigins);
 bindPointer(yes);
 bindPointer(no);
 
+// click directo
 yes.addEventListener('click', ()=>{ openWhatsApp(); acceptYes(yes); });
 ["dragstart","touchstart"].forEach(ev=>{
   yes.addEventListener(ev,e=>e.preventDefault());
@@ -183,3 +256,4 @@ yes.addEventListener('click', ()=>{ openWhatsApp(); acceptYes(yes); });
 </script>
 </body>
 </html>
+
